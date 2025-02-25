@@ -1,0 +1,17 @@
+aws_region = 
+aws_db_vpc_id =
+aws_db_subnet_ids = 
+aws_db_subnet_zones = 
+aws_rds_mysql_instance_name = 
+aws_rds_mysql_db = 
+aws_rds_mysql_user = 
+aws_rds_mysql_password = 
+cc_cloud_api_key = 
+cc_cloud_api_secret = 
+cc_env =
+cc_kafka_cluster_name = 
+cc_network_name = 
+gcp_project_id = 
+gcp_bigquery_dataset = 
+gcp_bq_service_account_name = 
+gcp_bq_service_account_json_file = 
