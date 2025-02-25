@@ -1,6 +1,3 @@
-##### 
-# mysql -h eap-test-with-nlb-shiv.cndsjke6xo5r.us-west-2.rds.amazonaws.com -P 3306 -u admin -p
-
 data "aws_caller_identity" "default"{}
 #### Get the aws vpc, subnet and rds objects
 data "aws_vpc" "default" {
@@ -80,33 +77,6 @@ resource "aws_lb_listener" "listener" {
   }
 }
 
-# # NLB Target Group
-# resource "aws_lb_target_group" "mysql_target_group" {
-#   name     = "${var.aws_rds_mysql_instance_name}-prvlink"
-#   port     = 3306
-#   protocol = "TCP"
-#   vpc_id   = data.aws_vpc.default.id
-# }
-
-# # NLB Target Group attachment 
-# resource "aws_lb_target_group_attachment" "mysql_target_group_attachment" {
-#   target_group_arn = aws_lb_target_group.mysql_target_group.arn
-#   target_id        = data.aws_db_instance.default.endpoint  # You may need to fetch this dynamically
-#   port             = 3306  # The port your RDS instance is listening on
-# }
-
-# NLB Listener
-# resource "aws_lb_listener" "listener" {
-#   load_balancer_arn = aws_lb.network_load_balancer.arn
-#   port              = 3306
-#   protocol          = "TCP"
-
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.mysql_target_group.arn
-#   }
-# }
-
 ## Make sure to run these commands 
 
 # Enable DNS Support and DNS Hostnames using local-exec provisioner
@@ -137,5 +107,3 @@ resource "aws_vpc_endpoint_service" "nlb_endpoint_service" {
   # allowed_principals = ["*"]  # Optionally restrict who can create the endpoint by specifying ARNs
   allowed_principals = [confluent_gateway.default.aws_egress_private_link_gateway[0].principal_arn]
 }
-
-

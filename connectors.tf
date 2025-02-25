@@ -88,32 +88,3 @@ resource "confluent_connector" "sink" {
     prevent_destroy = false
   }
 }
-
-
-# resource "confluent_kafka_connector" "bigquery_sink_v2" {
-#   kafka_cluster {
-#     id = "<KAFKA_CLUSTER_ID>"
-#   }
-
-#   environment {
-#     id = "<ENVIRONMENT_ID>"
-#   }
-
-#   config = {
-#     "name"                               = "bigquery-sink-v2"
-#     "connector.class"                    = "BigQuerySinkV2"
-#     "tasks.max"                          = "2"
-#     "topics"                             = "<TOPICS>"
-#     "auto.create.tables"                 = "true"
-#     "default.dataset"                    = "<BIGQUERY_DATASET>"
-#     "project.id"                         = "<BIGQUERY_PROJECT_ID>"
-#     "keyfile"                            = file("<SERVICE_ACCOUNT_KEY_FILE>")
-#     "buffer.mem.bytes"                   = "10000000"
-#     "sanitize.topics"                    = "true"
-#     "upsert.enabled"                     = "false"
-#     "delete.enabled"                     = "false"
-#     "key.converter"                      = "org.apache.kafka.connect.storage.StringConverter"
-#     "value.converter"                    = "io.confluent.connect.avro.AvroConverter"
-#     "value.converter.schema.registry.url" = "<SCHEMA_REGISTRY_URL>"
-#   }
-# }

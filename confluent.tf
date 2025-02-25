@@ -113,17 +113,3 @@ resource "confluent_access_point" "default" {
     vpc_endpoint_service_name = aws_vpc_endpoint_service.nlb_endpoint_service.service_name
   }
 }
-
-# resource "confluent_dns_record" "default" {
-#   display_name = "${var.aws_db_vpc_id}-rds"
-#   environment {
-#     id = confluent_environment.default.id
-#   }
-#   domain = tolist(aws_vpc_endpoint_service.nlb_endpoint_service.base_endpoint_dns_names)[0]
-#   gateway {
-#     id = confluent_gateway.default.id
-#   }
-#   private_link_access_point {
-#     id = confluent_access_point.default.id
-#   }
-# }
