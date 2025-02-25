@@ -36,42 +36,76 @@ resource "aws_security_group" "db_sg" {
 }
 
 # NLB Creation
-resource "aws_lb" "network_load_balancer" {
+resource "aws_lb" "default" {
   name               = "${var.aws_rds_mysql_instance_name}-prvlink"
   internal           = true
   load_balancer_type = "network"
-  security_groups    = []
-  subnets            = var.aws_db_subnet_ids
+  security_groups    = [aws_security_group.db_sg.id]
+  subnets            = [for subnet in data.aws_subnet.default: subnet.id]
+  enable_cross_zone_load_balancing = true
 
   enable_deletion_protection = false
 }
 
-# NLB Target Group
-resource "aws_lb_target_group" "mysql_target_group" {
-  name     = "${var.aws_rds_mysql_instance_name}-prvlink"
-  port     = 3306
-  protocol = "TCP"
-  vpc_id   = data.aws_vpc.default.id
+resource "aws_lb_target_group" "default" {
+  name        = "${var.aws_rds_mysql_instance_name}-prvlink"
+  port        = 3306
+  protocol    = "TCP"
+  target_type = "ip"
+  vpc_id      = data.aws_vpc.default.id
 }
 
-# NLB Target Group attachment 
-resource "aws_lb_target_group_attachment" "mysql_target_group_attachment" {
-  target_group_arn = aws_lb_target_group.mysql_target_group.arn
-  target_id        = data.aws_db_instance.default.endpoint  # You may need to fetch this dynamically
-  port             = 3306  # The port your RDS instance is listening on
+data "dns_a_record_set" "proxy" {
+  host = aws_db_proxy.default.endpoint
+}
+
+resource "aws_lb_target_group_attachment" "default" {
+  for_each = toset(data.dns_a_record_set.proxy.addrs)
+
+  target_group_arn = aws_lb_target_group.default.arn
+  target_id        = each.value
+  port             = 3306
+  depends_on = [ aws_db_proxy.default ]
 }
 
 # NLB Listener
 resource "aws_lb_listener" "listener" {
-  load_balancer_arn = aws_lb.network_load_balancer.arn
+  load_balancer_arn = aws_lb.default.arn
   port              = 3306
   protocol          = "TCP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.mysql_target_group.arn
+    target_group_arn = aws_lb_target_group.default.arn
   }
 }
+
+# # NLB Target Group
+# resource "aws_lb_target_group" "mysql_target_group" {
+#   name     = "${var.aws_rds_mysql_instance_name}-prvlink"
+#   port     = 3306
+#   protocol = "TCP"
+#   vpc_id   = data.aws_vpc.default.id
+# }
+
+# # NLB Target Group attachment 
+# resource "aws_lb_target_group_attachment" "mysql_target_group_attachment" {
+#   target_group_arn = aws_lb_target_group.mysql_target_group.arn
+#   target_id        = data.aws_db_instance.default.endpoint  # You may need to fetch this dynamically
+#   port             = 3306  # The port your RDS instance is listening on
+# }
+
+# NLB Listener
+# resource "aws_lb_listener" "listener" {
+#   load_balancer_arn = aws_lb.network_load_balancer.arn
+#   port              = 3306
+#   protocol          = "TCP"
+
+#   default_action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.mysql_target_group.arn
+#   }
+# }
 
 ## Make sure to run these commands 
 
@@ -98,11 +132,10 @@ resource "null_resource" "enable_dns_hostnames" {
 
 # VPC Endpoint Service (PrivateLink)
 resource "aws_vpc_endpoint_service" "nlb_endpoint_service" {
-  network_load_balancer_arns = [aws_lb.network_load_balancer.arn]
+  network_load_balancer_arns = [aws_lb.default.arn]
   acceptance_required        = false  # Control whether you need to manually accept endpoint connections
-
-  allowed_principals = ["*"]  # Optionally restrict who can create the endpoint by specifying ARNs
-#   allowed_principals = ["arn:aws:iam::730335223811:role/${data.confluent_environment.default.id}-role"]
+  # allowed_principals = ["*"]  # Optionally restrict who can create the endpoint by specifying ARNs
+  allowed_principals = [confluent_gateway.default.aws_egress_private_link_gateway[0].principal_arn]
 }
 
 

@@ -16,6 +16,9 @@ variable "aws_rds_mysql_instance_name" {
 variable "aws_rds_mysql_db" {
   type = string
 }
+variable "aws_rds_mysql_tables" {
+  type = list(string)
+}
 variable "aws_rds_mysql_user" {
   type = string
 }

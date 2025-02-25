@@ -90,3 +90,40 @@ resource "confluent_role_binding" "topic-read" {
   role_name   = "DeveloperRead"
   crn_pattern = "${confluent_kafka_cluster.default.rbac_crn}/kafka=${confluent_kafka_cluster.default.id}/topic=*"
 }
+
+resource "confluent_gateway" "default" {
+  display_name = "${var.aws_db_vpc_id}-rds-${var.aws_rds_mysql_instance_name}-gateway"
+  environment {
+    id = confluent_environment.default.id
+  }
+  aws_egress_private_link_gateway {
+    region = var.aws_region
+  }
+}
+
+resource "confluent_access_point" "default" {
+  display_name = "${var.aws_db_vpc_id}-rds-${var.aws_rds_mysql_instance_name}-ap"
+  environment {
+    id = confluent_environment.default.id
+  }
+  gateway {
+    id = confluent_gateway.default.id
+  }
+  aws_egress_private_link_endpoint {
+    vpc_endpoint_service_name = aws_vpc_endpoint_service.nlb_endpoint_service.service_name
+  }
+}
+
+# resource "confluent_dns_record" "default" {
+#   display_name = "${var.aws_db_vpc_id}-rds"
+#   environment {
+#     id = confluent_environment.default.id
+#   }
+#   domain = tolist(aws_vpc_endpoint_service.nlb_endpoint_service.base_endpoint_dns_names)[0]
+#   gateway {
+#     id = confluent_gateway.default.id
+#   }
+#   private_link_access_point {
+#     id = confluent_access_point.default.id
+#   }
+# }

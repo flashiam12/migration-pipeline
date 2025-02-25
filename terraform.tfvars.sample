@@ -4,6 +4,7 @@ aws_db_subnet_ids =
 aws_db_subnet_zones = 
 aws_rds_mysql_instance_name = 
 aws_rds_mysql_db = 
+aws_rds_mysql_tables = 
 aws_rds_mysql_user = 
 aws_rds_mysql_password = 
 cc_cloud_api_key = 

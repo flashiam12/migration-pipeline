@@ -14,11 +14,12 @@ resource "confluent_connector" "source" {
   config_nonsensitive = {
     "connector.class"          = "MySqlCdcSourceV2"
     "name"                     = "mysql-rds-source-0"
-    "database.hostname" =  data.aws_db_instance.default.address
+    "database.hostname" = confluent_access_point.default.aws_egress_private_link_endpoint[0].vpc_endpoint_dns_name
     "database.port" =  data.aws_db_instance.default.port
     "output.data.format" = "JSON_SR"
     "tasks.max"                = "1"
     "topic.prefix" =  "${var.aws_rds_mysql_db}_mysql_rds_"
+    "table.include.list" = join(",", var.aws_rds_mysql_tables)
     "after.state.only" =  "false"
     "auto.restart.on.user.error" =  "true"
     "event.processing.failure.handling.mode" =  "warn"
@@ -30,6 +31,7 @@ resource "confluent_connector" "source" {
     "output.key.format" = "JSON_SR"
     "snapshot.locking.mode": "minimal"
     "snapshot.mode": "when_needed"
+    "database.ssl.mode": "disabled"
   }
 
   depends_on = [ confluent_role_binding.all-subjects-default-rb,
@@ -57,6 +59,11 @@ resource "confluent_connector" "sink" {
   config_nonsensitive = {
     "connector.class"          = "DataScienceBigQueryStorageSink"
     "name"                     = "bigquery-rds-source-0"
+    "topics" = join(",", [for table in var.aws_rds_mysql_tables: "${var.aws_rds_mysql_db}_mysql_rds_.${table}"])
+    # "transforms": "ExtractField",
+    # "transforms.ExtractField.type": "org.apache.kafka.connect.transforms.ExtractField$Value",
+    # "transforms.ExtractField.field": "after"
+    "topic2table.map": join(",", [for table in var.aws_rds_mysql_tables: "${var.aws_rds_mysql_db}_mysql_rds_.${table}:${table}"])
     "datasets" = data.google_bigquery_dataset.dataset.friendly_name
     "ingestion.mode" = "UPSERT"
     "project" = var.gcp_project_id
@@ -64,7 +71,7 @@ resource "confluent_connector" "sink" {
     "auto.create.tables" = "true"
     "auto.restart.on.user.error" = "true"
     "auto.update.schemas" = "true"
-    "commit.interval" = "3000 seconds"
+    "commit.interval" = "3000"
     "input.data.format" = "JSON_SR"
     "input.key.format" = "JSON_SR"
     "kafka.api.key" = confluent_api_key.default.id
