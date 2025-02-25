@@ -72,6 +72,16 @@ This repository contains Terraform configurations for CDC Data pipeline from RDS
     cd migration-pipeline
     
     code .
+
+    # Install gcloud, confluent, aws and terraform CLI 
+
+    aws configure
+    
+    gcloud auth application-default login 
+    
+    confluent login 
+    
+    terraform init
     ```
 - **Setup the terraform variables**
     ```bash
