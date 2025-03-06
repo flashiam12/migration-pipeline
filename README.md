@@ -209,6 +209,136 @@ This repository contains Terraform configurations for CDC Data pipeline from RDS
     terraform apply 
 ```
 
+## Nginx proxy setup 
+
+### Confluent Cloud Proxy Setup with NGINX
+
+This document outlines the steps to install and configure an NGINX proxy to route traffic to your Confluent Cloud cluster. This setup uses Server Name Indication (SNI) to direct traffic to the appropriate servers on ports 443 and 9092.
+
+### Prerequisites
+
+* A Virtual Machine (VM) in your VPC or VNet that is connected to Confluent Cloud.
+* Access to the Confluent Cloud Console.
+* Basic Linux command-line knowledge.
+
+### Installation and Configuration
+
+1.  **Provision a VM:**
+    * Create a VM in your VPC or VNet that has network connectivity to your Confluent Cloud environment. Default VM properties are sufficient.
+
+2.  **Install NGINX:**
+    * Connect to your VM via SSH.
+    * For Ubuntu/Debian:
+        ```bash
+        sudo apt update
+        sudo apt install nginx
+        ```
+    * For RedHat:
+        ```bash
+        sudo yum install nginx
+        ```
+
+3.  **Test NGINX Configuration:**
+    * Verify the NGINX installation and configuration syntax:
+        ```bash
+        nginx -t
+        ```
+
+4.  **Enable `ngx_stream_module` (if needed):**
+    * If you encounter an error related to `ngx_stream_module.so`, locate the module. Common locations are `/usr/lib/nginx/modules` or `/usr/lib64/nginx/modules`.
+    * Add the following line to the top of `/etc/nginx/nginx.conf`:
+        ```nginx
+        load_module /usr/lib/nginx/modules/ngx_stream_module.so; #adjust the path if needed
+        ```
+    * Re-test the configuration:
+        ```bash
+        nginx -t
+        ```
+
+5.  **Configure NGINX for SNI Routing:**
+    * Replace the contents of `/etc/nginx/nginx.conf` with the following:
+        ```nginx
+        events {}
+        stream {
+          map $ssl_preread_server_name $targetBackend {
+             default $ssl_preread_server_name;
+         }
+
+         server {
+           listen 9092;
+
+           proxy_connect_timeout 1s;
+           proxy_timeout 7200s;
+
+           resolver 127.0.0.53;
+
+           proxy_pass $targetBackend:9092;
+           ssl_preread on;
+         }
+
+         server {
+           listen 443;
+
+           proxy_connect_timeout 1s;
+           proxy_timeout 7200s;
+
+           resolver 127.0.0.53;
+
+           proxy_pass $targetBackend:443;
+           ssl_preread on;
+         }
+
+         log_format stream_routing '[$time_local] remote address $remote_addr'
+                            'with SNI name "$ssl_preread_server_name" '
+                            'proxied to "$upstream_addr" '
+                            '$protocol $status $bytes_sent $bytes_received '
+                            '$session_time';
+         access_log /var/log/nginx/stream-access.log stream_routing;
+        }
+        ```
+    * **Important:** Do not replace `$targetBackend`. This variable is used for SNI routing.
+
+6.  **Verify DNS Resolver:**
+    * Test the resolver configuration:
+        ```bash
+        nslookup <ConfluentCloud_BootstrapHostname> 127.0.0.53
+        ```
+        * Replace `<ConfluentCloud_BootstrapHostname>` with your Confluent Cloud bootstrap hostname.
+    * Check `/var/log/nginx/error.log` for resolver errors.
+    * If DNS resolution fails, adjust the `resolver` directive in both `server` blocks:
+        * AWS: `resolver 169.254.169.253;`
+        * Azure: `resolver 168.63.129.16;`
+        * Google Cloud: `resolver 169.254.169.254;`
+
+7.  **Restart NGINX:**
+    * Apply the changes:
+        ```bash
+        sudo systemctl restart nginx
+        ```
+
+8.  **Verify NGINX Status:**
+    * Ensure NGINX is running:
+        ```bash
+        sudo systemctl status nginx
+        ```
+
+9.  **Configure DNS Resolution:**
+    * On your local machine (not the proxy VM), update your DNS configuration (e.g., `/etc/hosts`) to route Confluent Cloud traffic through the proxy.
+    * Add lines similar to the following, replacing placeholders with your VM's public IP and Confluent Cloud endpoints:
+        ```
+        <Public IP Address of VM instance> <Kafka-REST-Endpoint>
+        <Public IP Address of VM instance> <Flink-private-endpoint>
+        ```
+        * Retrieve the `<Kafka-REST-Endpoint>` from the Confluent Cloud Console.
+        * The Kafka bootstrap and REST endpoints often share the same hostname, differing only in port number.
+
+### Notes
+
+* Ensure your VM's security groups allow inbound traffic on ports 443 and 9092.
+* The `proxy_timeout` is set to 7200 seconds (2 hours). Adjust as needed.
+* This setup assumes your Confluent Cloud cluster uses standard ports 443 and 9092.
+* If you are using a firewall on the VM, ensure it allows connections to the Confluent Cloud cluster.
+
 ## Teardown 
 
 ```bash
